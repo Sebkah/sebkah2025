@@ -16,9 +16,9 @@ export default async function Home() {
     .filter((img) => img && img.builder);
 
   return (
-    <div className="relative w-2/3 h-2/4 p-6 pointer-events-none">
+    <div className="relative w-2/3 h-2/4 p-6 pointer-events-none z-10000000">
       <div
-        className="w-full grid gap-6 grid-flow-col-dense grid-rows-3 h-full"
+        className="w-full grid gap-6 grid-flow-col-dense grid-rows-3 h-200"
         style={{ gridAutoColumns: "20vw" }}
       >
         {images.map(({ builder, ...content }, index) => {

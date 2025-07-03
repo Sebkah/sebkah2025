@@ -38,7 +38,7 @@ export default function RootLayout({
             </ul>
           </div>
         </nav> */}
-        <div className="pointer-events-none -z-1 w-full h-full">{children}</div>
+        <div className="pointer-events-none  w-full h-full">{children}</div>
         <ThreeBackground />
       </body>
     </html>
