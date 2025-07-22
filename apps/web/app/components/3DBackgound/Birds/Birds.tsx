@@ -11,12 +11,13 @@ import {
   Vector3,
 } from "three";
 import { get } from "http";
+import { a } from "framer-motion/client";
 
 // Configuration constants
-const BIRD_COUNT = 400;
+const BIRD_COUNT = 200;
 const PERCEPTION_RADIUS = 0.35;
 const PERCEPTION_RADIUS_SQUARED = PERCEPTION_RADIUS * PERCEPTION_RADIUS;
-const MAX_SPEED = 0.02;
+const MAX_SPEED = 0.01;
 const MIN_SPEED = -0.01;
 const MIN_HEIGHT = 0.5;
 const CIRCULAR_RADIUS = 15;
@@ -79,9 +80,9 @@ export default function Birds({
     }
 
     // Log the number of chunks for debugging
-    console.log(
+    /*    console.log(
       `Current flock chunks: ${flockChunks.size}, current empty: ${emptyChunks.size}`
-    );
+    ); */
   });
 
   return (
@@ -126,6 +127,12 @@ const Bird = ({ id, targetPosition, geometry }: BirdProps) => {
     velocity: velocity.current,
   };
 
+  const randomGroundPosition = useRef(
+    new Vector3(Math.random() * 4 + 1, 0.05, Math.random() * 10 - 1)
+  );
+
+  let gotToGround = false;
+
   useFrame((state) => {
     // Remove bird from previous chunk (if it had one)
     if (previousChunkKey.current !== null) {
@@ -138,10 +145,6 @@ const Bird = ({ id, targetPosition, geometry }: BirdProps) => {
         }
       }
     }
-
-    // Update shader animation time
-    uniforms.current.time.value =
-      state.clock.getElapsedTime() + animationStartTime.current;
 
     const timeScaled = state.clock.elapsedTime / 2;
     // Select every 3rd bird for special behavior
@@ -186,16 +189,60 @@ const Bird = ({ id, targetPosition, geometry }: BirdProps) => {
       UPWARD_FORCE_STRENGTH
     );
 
+    const shouldBirdBeOnGround =
+      Math.sin(timeScaled / 10 + animationStartTime.current) > 0.8;
+
     // 5. Apply all forces to acceleration
     acceleration.current.set(0, 0, 0);
-    acceleration.current.add(circularForce);
-    acceleration.current.add(flockForce);
-    acceleration.current.add(targetForce);
-    acceleration.current.add(heightForce);
+    if (!shouldBirdBeOnGround) {
+      acceleration.current.add(circularForce);
+      acceleration.current.add(flockForce);
+      acceleration.current.add(targetForce);
+      acceleration.current.add(heightForce);
+
+      if (gotToGround) gotToGround = false; // Reset ground state if bird is flying
+
+      // Update shader animation time
+      uniforms.current.time.value =
+        state.clock.getElapsedTime() + animationStartTime.current;
+    } else {
+      // If bird should be on ground, apply a force towards a random ground position
+      uniforms.current.time.value = 525; // Reset time for ground birds
+      const groundPosition = randomGroundPosition.current;
+      const toGroundDirection = groundPosition
+        .clone()
+        .sub(position.current)
+        .normalize();
+
+      // If the bird is not already at the ground position, apply a small force towards it
+      if (
+        position.current.distanceToSquared(groundPosition) > 0.01 &&
+        !gotToGround
+      ) {
+        acceleration.current.add(toGroundDirection.multiplyScalar(0.1));
+      }
+      // If the bird is close to the ground position, make it wiggle around it
+      else {
+        gotToGround = true; // Mark as reached ground position
+      }
+
+      // If the bird is on the ground make walk a little using a sine wave
+      if (gotToGround) {
+        velocity.current.set(0, 0, 0); // Reset velocity when on ground
+        acceleration.current.set(0, 0, 0); // Reset acceleration when on ground
+
+        // Wiggle around the ground position
+        position.current.x += (Math.random() - 0.5) * 0.006; // Small random x offset
+        position.current.z += (Math.random() - 0.5) * 0.006; // Small random z offset
+        position.current.y = 0.06; // Keep it on the ground
+      }
+    }
+
+    const speedFactor = targetPosition.current ? 2 : 1;
 
     // 6. Update physics (velocity and position)
     velocity.current.add(acceleration.current);
-    velocity.current.clampLength(MIN_SPEED, MAX_SPEED);
+    velocity.current.clampLength(MIN_SPEED, MAX_SPEED * speedFactor);
     position.current.add(velocity.current);
 
     // 7. Update bird's transform
@@ -204,6 +251,7 @@ const Bird = ({ id, targetPosition, geometry }: BirdProps) => {
 
       // Convert position to world coordinates and look at movement direction
       const worldPosition = birdRef.current.getWorldPosition(new Vector3());
+
       birdRef.current.lookAt(velocity.current.clone().add(worldPosition));
     }
 
@@ -288,7 +336,7 @@ const getNeighboringChunks = (position: Vector3): Set<number> => {
  * 2. Separation - avoid crowding by moving away from very close birds
  * 3. Alignment - match the average direction of nearby birds
  */
-const calculateFlockingForce = (
+export const calculateFlockingForce = (
   currentPosition: Vector3,
   strength: number
 ): Vector3 => {
@@ -350,7 +398,7 @@ const calculateFlockingForce = (
  * Calculates a force that attracts birds towards the center of the scene
  * Increases force significantly if birds are too far from center
  */
-const calculateCenteringForce = (
+export const calculateCenteringForce = (
   currentPosition: Vector3,
   strength: number
 ): Vector3 => {
@@ -368,7 +416,7 @@ const calculateCenteringForce = (
 /**
  * Generates a circular motion force to create flowing, organic movement patterns
  */
-const calculateCircularMotionForce = (
+export const calculateCircularMotionForce = (
   elapsedTime: number,
   timeDelta: number,
   currentPosition: Vector3,
@@ -395,7 +443,7 @@ const calculateCircularMotionForce = (
 /**
  * Calculates force towards a target position
  */
-const calculateTargetForce = (
+export const calculateTargetForce = (
   targetPosition: Vector3,
   birdGroup: Group,
   strength: number
@@ -408,7 +456,7 @@ const calculateTargetForce = (
 /**
  * Calculates upward force to keep birds above minimum height
  */
-const calculateHeightConstraintForce = (
+export const calculateHeightConstraintForce = (
   currentPosition: Vector3,
   strength: number
 ): Vector3 => {
@@ -422,7 +470,7 @@ const calculateHeightConstraintForce = (
 /**
  * Creates a randomized initial position for a bird
  */
-const createInitialPosition = (id: number): Vector3 => {
+export const createInitialPosition = (id: number): Vector3 => {
   return new Vector3(
     Math.random() * 3 + 1,
     id / 70 - 0.1,

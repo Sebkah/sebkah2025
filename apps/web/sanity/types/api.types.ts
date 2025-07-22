@@ -13,6 +13,26 @@
  */
 
 // Source: schema.json
+export type Cv = {
+  _id: string;
+  _type: "cv";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  jobs?: Array<{
+    _key: string;
+  } & Job>;
+};
+
+export type Job = {
+  _type: "job";
+  title?: string;
+  description?: string;
+  company?: string;
+  Link?: string;
+  Date?: string;
+};
+
 export type ImageItem = {
   _type: "imageItem";
   title?: string;
@@ -199,7 +219,7 @@ export type SanityAssetSourceData = {
   url?: string;
 };
 
-export type AllSanitySchemaTypes = ImageItem | Project | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityImageAsset | SanityImageMetadata | Geopoint | Slug | SanityAssetSourceData;
+export type AllSanitySchemaTypes = Cv | Job | ImageItem | Project | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityImageAsset | SanityImageMetadata | Geopoint | Slug | SanityAssetSourceData;
 export declare const internalGroqTypeReferenceTo: unique symbol;
 // Source: ../web/sanity/queries/projectQueries.ts
 // Variable: PROJECTS_QUERY
@@ -251,11 +271,24 @@ export type PROJECTS_QUERYResult = Array<{
     _key: string;
   }>;
 }>;
+// Variable: CV_QUERY
+// Query: *[_type == "cv"][0]{...}
+export type CV_QUERYResult = {
+  _id: string;
+  _type: "cv";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  jobs?: Array<{
+    _key: string;
+  } & Job>;
+} | null;
 
 // Query TypeMap
 import "next-sanity";
 declare module "next-sanity" {
   interface SanityQueries {
     "*[_type == \"Project\" && defined(slug.current)][0...12]{\n  ...\n}": PROJECTS_QUERYResult;
+    "*[_type == \"cv\"][0]{...}": CV_QUERYResult;
   }
 }

@@ -1,6 +1,6 @@
 varying vec3 Normal;
 varying vec3 Position;
-uniform float time;
+
 varying vec3 pos;
 
 void main() {
